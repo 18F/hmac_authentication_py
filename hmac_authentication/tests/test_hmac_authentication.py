@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from hmac_authentication import exceptions
 from hmac_authentication import hmacauth
+from hmac_authentication import exceptions
+
+import hashlib
 import io
 import unittest
 
@@ -27,15 +29,7 @@ class HmacAuthTest(unittest.TestCase):
         'Gap-Auth',
     ]
 
-    auth = HmacAuth('sha1', 'foobar', 'Gap-Signature', HEADERS)
-
-
-class HmacAuthConstructorTest(HmacAuthTest):
-    def test_constructor_fails_if_digest_is_not_supported(self):
-        message = 'HMAC authentication digest is not supported: unsupported'
-        with self.assertRaisesRegexp(exceptions.Error, message):
-            HmacAuth('unsupported', 'foobar', 'Gap-Signature',
-                HmacAuthTest.HEADERS)
+    auth = HmacAuth(hashlib.sha1, 'foobar', 'Gap-Signature', HEADERS)
 
 
 class RequestSignatureTest(HmacAuthTest):
@@ -151,7 +145,7 @@ class ValidateRequestTest(HmacAuthTest):
         self.assertEqual(expected_signature, computed)
 
     def test_validate_request_mismatch(self):
-        barbaz_auth = HmacAuth('sha1', 'barbaz', 'Gap-Signature',
+        barbaz_auth = HmacAuth(hashlib.sha1, 'barbaz', 'Gap-Signature',
             HmacAuthTest.HEADERS)
         self.auth.sign_request(self.environ)
         result, header, computed = barbaz_auth.validate_request(self.environ)

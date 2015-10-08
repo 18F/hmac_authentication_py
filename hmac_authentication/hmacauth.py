@@ -55,11 +55,8 @@ class HmacAuth(object):
       https://www.python.org/dev/peps/pep-0333/
     '''
 
-    def __init__(self, digest_name, secret_key, signature_header, headers):
-        if not digest_name in hashlib.algorithms_available:
-            raise exceptions.Error(
-                'HMAC authentication digest is not supported: ' + digest_name)
-        self._digest = getattr(hashlib, digest_name)
+    def __init__(self, digest, secret_key, signature_header, headers):
+        self._digest = digest
         self._secret_key = secret_key
         self._signature_header = header_name_to_wsgi(signature_header)
         self._headers = [header_name_to_wsgi(h) for h in headers]
@@ -139,10 +136,10 @@ class HmacMiddleware(object):
         self.hmac_auth = hmac_auth
 
     def __call__(self, environ, start_response):
-        result = self.auth(environ)
-        if result.result_code != ValidationResults.MATCH:
-            try:
-                abort(401)
-            except HTTPException as error:
-                return error(environ, start_response)
-        return self.app(environ, start_response)
+        result = self.hmac_auth.validate_request(environ)
+        if result.result_code == ValidationResultCodes.MATCH:
+            return self.app(environ, start_response)
+        try:
+            abort(401)
+        except HTTPException as error:
+            return error(environ, start_response)
