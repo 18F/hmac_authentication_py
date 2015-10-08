@@ -10,8 +10,8 @@ import unittest
 
 
 HmacAuth = hmacauth.HmacAuth
-ValidationResult = hmacauth.ValidationResult
-ValidationResultCodes = hmacauth.ValidationResultCodes
+AuthenticationResult = hmacauth.AuthenticationResult
+AuthenticationResultCodes = hmacauth.AuthenticationResultCodes
 
 
 class HmacAuthTest(unittest.TestCase):
@@ -101,7 +101,7 @@ class RequestSignatureTest(HmacAuthTest):
             self.auth.request_signature(environ))
 
 
-class ValidateRequestTest(HmacAuthTest):
+class AuthenticateRequestTest(HmacAuthTest):
     def setUp(self):
         self.environ = {
             'REQUEST_METHOD': 'GET',
@@ -111,45 +111,47 @@ class ValidateRequestTest(HmacAuthTest):
             'PATH_INFO': '/foo/bar?baz=quux%2Fxyzzy#plugh',
         }
 
-    def test_validate_request_no_signature(self):
-        result, header, computed = self.auth.validate_request(self.environ)
-        self.assertEqual(ValidationResultCodes.NO_SIGNATURE, result)
+    def test_authenticate_request_no_signature(self):
+        result, header, computed = self.auth.authenticate_request(self.environ)
+        self.assertEqual(AuthenticationResultCodes.NO_SIGNATURE, result)
         self.assertIsNone(header)
         self.assertIsNone(computed)
 
-    def test_validate_request_invalid_format(self):
+    def test_authenticate_request_invalid_format(self):
         bad_value = 'should be algorithm and digest value'
         self.environ['HTTP_GAP_SIGNATURE'] = bad_value
-        result, header, computed = self.auth.validate_request(self.environ)
-        self.assertEqual(ValidationResultCodes.INVALID_FORMAT, result)
+        result, header, computed = self.auth.authenticate_request(self.environ)
+        self.assertEqual(AuthenticationResultCodes.INVALID_FORMAT, result)
         self.assertEqual(bad_value, header)
         self.assertIsNone(computed)
 
-    def test_validate_request_unsupported_algorithm(self):
+    def test_authenticate_request_unsupported_algorithm(self):
         valid_signature = self.auth.request_signature(self.environ)
         components = valid_signature.split(' ')
         signature_with_unsupported_algorithm = 'unsupported ' + components[1]
         self.environ['HTTP_GAP_SIGNATURE'] = \
             signature_with_unsupported_algorithm
-        result, header, computed = self.auth.validate_request(self.environ)
-        self.assertEqual(ValidationResultCodes.UNSUPPORTED_ALGORITHM, result)
+        result, header, computed = self.auth.authenticate_request(self.environ)
+        self.assertEqual(
+            AuthenticationResultCodes.UNSUPPORTED_ALGORITHM, result)
         self.assertEqual(signature_with_unsupported_algorithm, header)
         self.assertIsNone(computed)
 
-    def test_validate_request_match(self):
+    def test_authenticate_request_match(self):
         expected_signature = self.auth.request_signature(self.environ)
         self.auth.sign_request(self.environ)
-        result, header, computed = self.auth.validate_request(self.environ)
-        self.assertEqual(ValidationResultCodes.MATCH, result)
+        result, header, computed = self.auth.authenticate_request(self.environ)
+        self.assertEqual(AuthenticationResultCodes.MATCH, result)
         self.assertEqual(expected_signature, header)
         self.assertEqual(expected_signature, computed)
 
-    def test_validate_request_mismatch(self):
+    def test_authenticate_request_mismatch(self):
         barbaz_auth = HmacAuth(hashlib.sha1, 'barbaz', 'Gap-Signature',
             HmacAuthTest.HEADERS)
         self.auth.sign_request(self.environ)
-        result, header, computed = barbaz_auth.validate_request(self.environ)
-        self.assertEqual(ValidationResultCodes.MISMATCH, result)
+        result, header, computed = barbaz_auth.authenticate_request(
+            self.environ)
+        self.assertEqual(AuthenticationResultCodes.MISMATCH, result)
         self.assertEqual(self.auth.request_signature(self.environ), header)
         self.assertEqual(barbaz_auth.request_signature(self.environ), computed)
 

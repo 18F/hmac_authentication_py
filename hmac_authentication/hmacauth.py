@@ -9,12 +9,12 @@ import hashlib
 import hmac
 
 
-ValidationResult = collections.namedtuple('ValidationResult',
+AuthenticationResult = collections.namedtuple('AuthenticationResult',
     ['result_code', 'header_signature', 'computed_signature'])
 
 
-class ValidationResultCodes(enum.Enum):
-    '''Defines the result codes used in ValidationResult.'''
+class AuthenticationResultCodes(enum.Enum):
+    '''Defines the result codes used in AuthenticationResult.'''
 
     # The incoming result did not have a signature header
     NO_SIGNATURE = 1
@@ -43,8 +43,8 @@ def header_name_to_wsgi(header_name):
 
 def _compare_signatures(header, computed):
     if hmac.compare_digest(header.encode('utf8'), computed.encode('utf8')):
-        return ValidationResultCodes.MATCH
-    return ValidationResultCodes.MISMATCH
+        return AuthenticationResultCodes.MATCH
+    return AuthenticationResultCodes.MISMATCH
 
 
 class HmacAuth(object):
@@ -101,31 +101,31 @@ class HmacAuth(object):
         '''Retrieves the signature included in the request header.'''
         return environ.get(self._signature_header)
 
-    def validate_request(self, environ):
+    def authenticate_request(self, environ):
         '''Authenticates the request by comparing HMAC signatures.
         
         Returns the result code, the signature from the header, and the
-        locally-computed signature as a ValidationResult.
+        locally-computed signature as a AuthenticationResult.
         '''
         header = self.signature_from_header(environ)
         if header is None:
-            return ValidationResult(ValidationResultCodes.NO_SIGNATURE,
-                None, None)
+            return AuthenticationResult(
+                AuthenticationResultCodes.NO_SIGNATURE, None, None)
         components = header.split(' ')
 
         if len(components) != 2:
-            return ValidationResult(ValidationResultCodes.INVALID_FORMAT,
-                header, None)
+            return AuthenticationResult(
+                AuthenticationResultCodes.INVALID_FORMAT, header, None)
 
         digest_name = components[0]
         if not digest_name in hashlib.algorithms_available:
-            return ValidationResult(ValidationResultCodes.UNSUPPORTED_ALGORITHM,
-                header, None)
+            return AuthenticationResult(
+                AuthenticationResultCodes.UNSUPPORTED_ALGORITHM, header, None)
 
         computed = self._request_signature(
             environ, getattr(hashlib, digest_name))
-        return ValidationResult(_compare_signatures(header, computed),
-            header, computed)
+        return AuthenticationResult(
+            _compare_signatures(header, computed), header, computed)
 
 
 class HmacMiddleware(object):
@@ -136,8 +136,8 @@ class HmacMiddleware(object):
         self.hmac_auth = hmac_auth
 
     def __call__(self, environ, start_response):
-        result = self.hmac_auth.validate_request(environ)
-        if result.result_code == ValidationResultCodes.MATCH:
+        result = self.hmac_auth.authenticate_request(environ)
+        if result.result_code == AuthenticationResultCodes.MATCH:
             return self.app(environ, start_response)
         try:
             abort(401)

@@ -1,6 +1,6 @@
 # hmac_authentication Python package
 
-Signs and validates HTTP requests based on a shared-secret HMAC signature.
+Signs and authenticates HTTP requests based on a shared-secret HMAC signature.
 
 Developed in parallel with the following packages for other languages:
 - Go: [github.com/18F/hmacauth](https://github.com/18F/hmacauth/)
