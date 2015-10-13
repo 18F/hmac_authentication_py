@@ -1,17 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from hmac_authentication import hmacauth
+from hmac_authentication.hmacauth import (HmacAuth, AuthenticationResult,
+    AuthenticationResultCodes)
 from hmac_authentication import exceptions
 
 import hashlib
 import io
 import unittest
-
-
-HmacAuth = hmacauth.HmacAuth
-AuthenticationResult = hmacauth.AuthenticationResult
-AuthenticationResultCodes = hmacauth.AuthenticationResultCodes
 
 
 class HmacAuthTest(unittest.TestCase):
