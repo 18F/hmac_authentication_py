@@ -7,29 +7,31 @@ from hmac_authentication import exceptions
 
 import hashlib
 import io
-import unittest
+import pytest
 
 
-class HmacAuthTest(unittest.TestCase):
-    # These correspond to the headers used in bitly/oauth2_proxy#147.
-    HEADERS = [
-        'Content-Length',
-        'Content-Md5',
-        'Content-Type',
-        'Date',
-        'Authorization',
-        'X-Forwarded-User',
-        'X-Forwarded-Email',
-        'X-Forwarded-Access-Token',
-        'Cookie',
-        'Gap-Auth',
-    ]
-
-    auth = HmacAuth(hashlib.sha1, 'foobar', 'Gap-Signature', HEADERS)
+# These correspond to the headers used in bitly/oauth2_proxy#147.
+HEADERS = [
+    'Content-Length',
+    'Content-Md5',
+    'Content-Type',
+    'Date',
+    'Authorization',
+    'X-Forwarded-User',
+    'X-Forwarded-Email',
+    'X-Forwarded-Access-Token',
+    'Cookie',
+    'Gap-Auth',
+]
 
 
-class RequestSignatureTest(HmacAuthTest):
-    def test_request_signature_post(self):
+@pytest.fixture
+def auth():
+    return HmacAuth(hashlib.sha1, 'foobar', 'Gap-Signature', HEADERS)
+
+
+class TestRequestSignature(object):
+    def test_request_signature_post(self, auth):
         payload = '{ "hello": "world!" }'
         environ = {
             'REQUEST_METHOD': 'POST',
@@ -47,9 +49,9 @@ class RequestSignatureTest(HmacAuthTest):
             'HTTP_X_FORWARDED_ACCESS_TOKEN': 'feedbead',
             'HTTP_COOKIE': 'foo; bar; baz=quux',
             'HTTP_GAP_AUTH': 'mbland',
-            'wsgi.input': io.StringIO(payload),
+            'wsgi.input': io.BytesIO(payload.decode()),
         }
-        self.assertEqual('\n'.join([
+        expected = '\n'.join([
             'POST',
             str(len(payload)),
             'deadbeef',
@@ -62,12 +64,12 @@ class RequestSignatureTest(HmacAuthTest):
             'foo; bar; baz=quux',
             'mbland',
             '/foo/bar',
-            ]) + '\n',
-            self.auth.string_to_sign(environ))
-        self.assertEqual('sha1 K4IrVDtMCRwwW8Oms0VyZWMjXHI=',
-            self.auth.request_signature(environ))
+            ]) + '\n'
+        assert expected == auth.string_to_sign(environ)
+        assert ('sha1 K4IrVDtMCRwwW8Oms0VyZWMjXHI=' ==
+            auth.request_signature(environ))
 
-    def test_request_signature_get(self):
+    def test_request_signature_get(self, auth):
         environ = {
             'REQUEST_METHOD': 'GET',
             'wsgi.url_scheme': 'http',
@@ -78,7 +80,7 @@ class RequestSignatureTest(HmacAuthTest):
             'HTTP_COOKIE': 'foo; bar; baz=quux',
             'HTTP_GAP_AUTH': 'mbland',
         }
-        self.assertEqual('\n'.join([
+        expected = '\n'.join([
             'GET',
             '',
             '',
@@ -91,66 +93,60 @@ class RequestSignatureTest(HmacAuthTest):
             'foo; bar; baz=quux',
             'mbland',
             '/foo/bar?baz=quux%2Fxyzzy#plugh',
-            ]) + '\n',
-            self.auth.string_to_sign(environ))
-        self.assertEqual('sha1 ih5Jce9nsltry63rR4ImNz2hdnk=',
-            self.auth.request_signature(environ))
+            ]) + '\n'
+        assert expected == auth.string_to_sign(environ)
+        assert ('sha1 ih5Jce9nsltry63rR4ImNz2hdnk=' ==
+            auth.request_signature(environ))
 
 
-class AuthenticateRequestTest(HmacAuthTest):
-    def setUp(self):
-        self.environ = {
-            'REQUEST_METHOD': 'GET',
-            'wsgi.url_scheme': 'http',
-            'SERVER_NAME': 'localhost',
-            'SERVER_PORT': '80',
-            'PATH_INFO': '/foo/bar?baz=quux%2Fxyzzy#plugh',
-        }
+@pytest.fixture
+def environ():
+    return {
+        'REQUEST_METHOD': 'GET',
+        'wsgi.url_scheme': 'http',
+        'SERVER_NAME': 'localhost',
+        'SERVER_PORT': '80',
+        'PATH_INFO': '/foo/bar?baz=quux%2Fxyzzy#plugh',
+    }
 
-    def test_authenticate_request_no_signature(self):
-        result, header, computed = self.auth.authenticate_request(self.environ)
-        self.assertEqual(AuthenticationResultCodes.NO_SIGNATURE, result)
-        self.assertIsNone(header)
-        self.assertIsNone(computed)
 
-    def test_authenticate_request_invalid_format(self):
+class TestAuthenticateRequest(object):
+    def test_authenticate_request_no_signature(self, auth, environ):
+        result, header, computed = auth.authenticate_request(environ)
+        assert AuthenticationResultCodes.NO_SIGNATURE == result
+        assert header is None
+        assert computed is None
+
+    def test_authenticate_request_invalid_format(self, auth, environ):
         bad_value = 'should be algorithm and digest value'
-        self.environ['HTTP_GAP_SIGNATURE'] = bad_value
-        result, header, computed = self.auth.authenticate_request(self.environ)
-        self.assertEqual(AuthenticationResultCodes.INVALID_FORMAT, result)
-        self.assertEqual(bad_value, header)
-        self.assertIsNone(computed)
+        environ['HTTP_GAP_SIGNATURE'] = bad_value
+        result, header, computed = auth.authenticate_request(environ)
+        assert AuthenticationResultCodes.INVALID_FORMAT == result
+        assert bad_value == header
+        assert computed is None
 
-    def test_authenticate_request_unsupported_algorithm(self):
-        valid_signature = self.auth.request_signature(self.environ)
+    def test_authenticate_request_unsupported_algorithm(self, auth, environ):
+        valid_signature = auth.request_signature(environ)
         components = valid_signature.split(' ')
         signature_with_unsupported_algorithm = 'unsupported ' + components[1]
-        self.environ['HTTP_GAP_SIGNATURE'] = \
-            signature_with_unsupported_algorithm
-        result, header, computed = self.auth.authenticate_request(self.environ)
-        self.assertEqual(
-            AuthenticationResultCodes.UNSUPPORTED_ALGORITHM, result)
-        self.assertEqual(signature_with_unsupported_algorithm, header)
-        self.assertIsNone(computed)
+        environ['HTTP_GAP_SIGNATURE'] = signature_with_unsupported_algorithm
+        result, header, computed = auth.authenticate_request(environ)
+        assert AuthenticationResultCodes.UNSUPPORTED_ALGORITHM == result
+        assert signature_with_unsupported_algorithm == header
+        assert computed is None
 
-    def test_authenticate_request_match(self):
-        expected_signature = self.auth.request_signature(self.environ)
-        self.auth.sign_request(self.environ)
-        result, header, computed = self.auth.authenticate_request(self.environ)
-        self.assertEqual(AuthenticationResultCodes.MATCH, result)
-        self.assertEqual(expected_signature, header)
-        self.assertEqual(expected_signature, computed)
+    def test_authenticate_request_match(self, auth, environ):
+        expected_signature = auth.request_signature(environ)
+        auth.sign_request(environ)
+        result, header, computed = auth.authenticate_request(environ)
+        assert AuthenticationResultCodes.MATCH == result
+        assert expected_signature == header
+        assert expected_signature == computed
 
-    def test_authenticate_request_mismatch(self):
-        barbaz_auth = HmacAuth(hashlib.sha1, 'barbaz', 'Gap-Signature',
-            HmacAuthTest.HEADERS)
-        self.auth.sign_request(self.environ)
-        result, header, computed = barbaz_auth.authenticate_request(
-            self.environ)
-        self.assertEqual(AuthenticationResultCodes.MISMATCH, result)
-        self.assertEqual(self.auth.request_signature(self.environ), header)
-        self.assertEqual(barbaz_auth.request_signature(self.environ), computed)
-
-
-if __name__ == '__main__':
-    unittest.main()
+    def test_authenticate_request_mismatch(self, auth, environ):
+        barbaz_auth = HmacAuth(hashlib.sha1, 'barbaz', 'Gap-Signature', HEADERS)
+        auth.sign_request(environ)
+        result, header, computed = barbaz_auth.authenticate_request(environ)
+        assert AuthenticationResultCodes.MISMATCH == result
+        assert auth.request_signature(environ) == header
+        assert barbaz_auth.request_signature(environ) == computed

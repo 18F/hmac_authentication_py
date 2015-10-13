@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from hmac_authentication import exceptions
+from werkzeug.exceptions import abort, HTTPException
 
 import base64
 import collections
@@ -61,10 +62,9 @@ class HmacAuth(object):
         self._signature_header = header_name_to_wsgi(signature_header)
         self._headers = [header_name_to_wsgi(h) for h in headers]
 
-    # NOTE(mbland): Best I can tell, either the WSGI layer or every sane HTTP
-    # request tool will compile multiply-defined headers into a single header.
-    # At any rate, multiply-defined headers are abad idea, and the WSGI
-    # environ interface only appears to ever return a single string.
+    # Note that compile multiply-defined headers should always be rewritten as
+    # a single header:
+    # http://stackoverflow.com/questions/1801124/how-does-wsgi-handle-multiple-request-headers-with-the-same-name
     def _signed_headers(self, environ):
         return [str(environ.get(h, '')) for h in self._headers]
 
