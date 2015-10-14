@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 from setuptools import setup
 
+REQUIRES = [
+    'enum34>=1.0.4',
+    'werkzeug>=0.10.4',
+]
+
 def read(fname):
     with open(fname) as fp:
         content = fp.read()
@@ -31,6 +36,7 @@ setup(
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
     ],
+    install_requires=REQUIRES,
     test_suite='nose.collector',
     tests_require=['nose'],
 )
