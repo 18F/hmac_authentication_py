@@ -47,7 +47,7 @@ class TestRequestSignature(object):
             'HTTP_X_FORWARDED_ACCESS_TOKEN': 'feedbead',
             'HTTP_COOKIE': 'foo; bar; baz=quux',
             'HTTP_GAP_AUTH': 'mbland',
-            'wsgi.input': six.StringIO(payload),
+            'wsgi.input': six.BytesIO(payload.encode('utf8')),
         }
         expected = '\n'.join([
             'POST',

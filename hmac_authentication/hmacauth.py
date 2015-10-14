@@ -94,7 +94,7 @@ class HmacAuth(object):
             digest)
         request = Request(environ)
         if 'wsgi.input' in environ:
-            h.update(request.get_data().encode('utf8'))
+            h.update(request.get_data())
         return digest().name + ' ' + base64.b64encode(h.digest()).decode('utf8')
 
     def signature_from_header(self, environ):
