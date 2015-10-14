@@ -75,7 +75,10 @@ class HmacAuth(object):
         components = [environ['REQUEST_METHOD']]
         components.extend(self._signed_headers(environ))
         components.append(
-            environ.get('PATH_INFO', '/') + environ.get('QUERY_STRING', ''))
+            environ.get('SCRIPT_NAME', '') +
+            environ.get('PATH_INFO', '/') +
+            environ.get('QUERY_STRING', '')
+        )
         return '\n'.join(components) + '\n'
 
     # NOTE(mbland): I'm not sure the outbound WSGI HTTP request interface is
