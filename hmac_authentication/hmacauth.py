@@ -118,12 +118,13 @@ class HmacAuth(object):
                 AuthenticationResultCodes.INVALID_FORMAT, header, None)
 
         digest_name = components[0]
-        if digest_name not in hashlib.algorithms_available:
+        try:
+            digest = getattr(hashlib, digest_name)
+        except AttributeError:
             return AuthenticationResult(
                 AuthenticationResultCodes.UNSUPPORTED_ALGORITHM, header, None)
 
-        computed = self._request_signature(
-            environ, getattr(hashlib, digest_name))
+        computed = self._request_signature(environ, digest)
         return AuthenticationResult(
             _compare_signatures(header, computed), header, computed)
 
