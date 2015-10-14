@@ -1,13 +1,11 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from hmac_authentication.hmacauth import (HmacAuth, AuthenticationResult,
-    AuthenticationResultCodes)
-from hmac_authentication import exceptions
-
 import hashlib
-import io
+
+import six
 import pytest
+
+from hmac_authentication.hmacauth import HmacAuth, AuthenticationResultCodes
 
 
 # These correspond to the headers used in bitly/oauth2_proxy#147.
@@ -49,7 +47,7 @@ class TestRequestSignature(object):
             'HTTP_X_FORWARDED_ACCESS_TOKEN': 'feedbead',
             'HTTP_COOKIE': 'foo; bar; baz=quux',
             'HTTP_GAP_AUTH': 'mbland',
-            'wsgi.input': io.BytesIO(payload.decode()),
+            'wsgi.input': six.StringIO(payload),
         }
         expected = '\n'.join([
             'POST',
@@ -64,7 +62,7 @@ class TestRequestSignature(object):
             'foo; bar; baz=quux',
             'mbland',
             '/foo/bar',
-            ]) + '\n'
+        ]) + '\n'
         assert expected == auth.string_to_sign(environ)
         assert ('sha1 K4IrVDtMCRwwW8Oms0VyZWMjXHI=' ==
             auth.request_signature(environ))
@@ -93,7 +91,7 @@ class TestRequestSignature(object):
             'foo; bar; baz=quux',
             'mbland',
             '/foo/bar?baz=quux%2Fxyzzy#plugh',
-            ]) + '\n'
+        ]) + '\n'
         assert expected == auth.string_to_sign(environ)
         assert ('sha1 ih5Jce9nsltry63rR4ImNz2hdnk=' ==
             auth.request_signature(environ))

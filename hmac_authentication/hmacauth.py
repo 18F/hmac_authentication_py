@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 
-from hmac_authentication import exceptions
-from werkzeug.exceptions import abort, HTTPException
-
-import base64
-import collections
 import enum
-import hashlib
 import hmac
+import base64
+import hashlib
+import collections
+
+from werkzeug.wrappers import Request
+from werkzeug.exceptions import abort, HTTPException
 
 
 AuthenticationResult = collections.namedtuple('AuthenticationResult',
@@ -92,9 +92,9 @@ class HmacAuth(object):
         h = hmac.new(self._secret_key.encode('utf8'),
             self.string_to_sign(environ).encode('utf8'),
             digest)
-        body = environ.get('wsgi.input')
-        if body is not None:
-            h.update(body.getvalue().encode('utf8'))
+        request = Request(environ)
+        if 'wsgi.input' in environ:
+            h.update(request.get_data().encode('utf8'))
         return digest().name + ' ' + base64.b64encode(h.digest()).decode('utf8')
 
     def signature_from_header(self, environ):
@@ -103,7 +103,7 @@ class HmacAuth(object):
 
     def authenticate_request(self, environ):
         '''Authenticates the request by comparing HMAC signatures.
-        
+
         Returns the result code, the signature from the header, and the
         locally-computed signature as a AuthenticationResult.
         '''
@@ -118,7 +118,7 @@ class HmacAuth(object):
                 AuthenticationResultCodes.INVALID_FORMAT, header, None)
 
         digest_name = components[0]
-        if not digest_name in hashlib.algorithms_available:
+        if digest_name not in hashlib.algorithms_available:
             return AuthenticationResult(
                 AuthenticationResultCodes.UNSUPPORTED_ALGORITHM, header, None)
 
@@ -130,7 +130,7 @@ class HmacAuth(object):
 
 class HmacMiddleware(object):
     '''WSGI middleware for authenticating incoming HTTP requests via HmacAuth'''
-    
+
     def __init__(self, app, hmac_auth):
         self.app = app
         self.hmac_auth = hmac_auth
