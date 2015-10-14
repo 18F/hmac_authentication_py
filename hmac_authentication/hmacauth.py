@@ -50,6 +50,13 @@ def _compare_signatures(header, computed):
     return AuthenticationResultCodes.MISMATCH
 
 
+def get_uri(environ):
+    uri = environ.get('SCRIPT_NAME', '') + environ.get('PATH_INFO', '/')
+    if environ.get('QUERY_STRING'):
+        uri = '{}?{}'.format(uri, environ['QUERY_STRING'])
+    return uri
+
+
 class HmacAuth(object):
     '''HmacAuth signs outbound requests and authenticates inbound requests.
 
@@ -76,10 +83,7 @@ class HmacAuth(object):
         '''
         components = [environ['REQUEST_METHOD']]
         components.extend(self._signed_headers(environ))
-        uri = environ.get('SCRIPT_NAME', '') + environ.get('PATH_INFO', '/')
-        if environ.get('QUERY_STRING'):
-            uri = '{}?{}'.format(uri, environ['QUERY_STRING'])
-        components.append(uri)
+        components.append(get_uri(environ))
         return '\n'.join(components) + '\n'
 
     # NOTE(mbland): I'm not sure the outbound WSGI HTTP request interface is

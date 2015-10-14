@@ -5,7 +5,9 @@ import hashlib
 import six
 import pytest
 
-from hmac_authentication.hmacauth import HmacAuth, AuthenticationResultCodes
+from hmac_authentication.hmacauth import (
+    get_uri, HmacAuth, AuthenticationResultCodes
+)
 
 
 # These correspond to the headers used in bitly/oauth2_proxy#147.
@@ -26,6 +28,27 @@ HEADERS = [
 @pytest.fixture
 def auth():
     return HmacAuth(hashlib.sha1, 'foobar', 'Gap-Signature', HEADERS)
+
+
+class TestHelpers:
+
+    def test_get_uri(self):
+        environ = {'PATH_INFO': '/data'}
+        assert get_uri(environ) == '/data'
+
+    def test_get_uri_query_string(self):
+        environ = {
+            'PATH_INFO': '/data',
+            'QUERY_STRING': 'foo=bar'
+        }
+        assert get_uri(environ) == '/data?foo=bar'
+
+    def test_get_uri_script_name(self):
+        environ = {
+            'PATH_INFO': '/data',
+            'SCRIPT_NAME': '/proxy'
+        }
+        assert get_uri(environ) == '/proxy/data'
 
 
 class TestRequestSignature(object):
