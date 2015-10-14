@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
+import sys
 from setuptools import setup
 
-REQUIRES = [
-    'enum34>=1.0.4',
-    'werkzeug>=0.10.4',
-]
+REQUIRES = ['werkzeug>=0.10.4']
+if sys.version_info < (3, 4):
+    REQUIRES.append('enum34>=1.0.4')
 
 def read(fname):
     with open(fname) as fp:
