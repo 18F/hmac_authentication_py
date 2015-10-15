@@ -1,3 +1,5 @@
 six
 tox
+Flask
+WebTest
 pytest>=2.7.3
