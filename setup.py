@@ -13,7 +13,7 @@ def read(fname):
 
 setup(
     name='hmac_authentication',
-    version='0.0.0',
+    version='1.0.0',
     description='Signs and validates HTTP requests based on a shared-secret HMAC signature',
     long_description=read('README.md'),
     author='Mike Bland',
