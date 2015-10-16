@@ -10,8 +10,10 @@ from werkzeug.wrappers import Request
 from werkzeug.exceptions import abort, HTTPException
 
 
-AuthenticationResult = collections.namedtuple('AuthenticationResult',
-    ['result_code', 'header_signature', 'computed_signature'])
+AuthenticationResult = collections.namedtuple(
+    'AuthenticationResult',
+    ['result_code', 'header_signature', 'computed_signature'],
+)
 
 
 class AuthenticationResultCodes(enum.Enum):
@@ -48,6 +50,13 @@ def _compare_signatures(header, computed):
     return AuthenticationResultCodes.MISMATCH
 
 
+def get_uri(environ):
+    uri = environ.get('SCRIPT_NAME', '') + environ.get('PATH_INFO', '/')
+    if environ.get('QUERY_STRING'):
+        uri = '{}?{}'.format(uri, environ['QUERY_STRING'])
+    return uri
+
+
 class HmacAuth(object):
     '''HmacAuth signs outbound requests and authenticates inbound requests.
 
@@ -74,8 +83,7 @@ class HmacAuth(object):
         '''
         components = [environ['REQUEST_METHOD']]
         components.extend(self._signed_headers(environ))
-        components.append(
-            environ.get('PATH_INFO', '/') + environ.get('QUERY_STRING', ''))
+        components.append(get_uri(environ))
         return '\n'.join(components) + '\n'
 
     # NOTE(mbland): I'm not sure the outbound WSGI HTTP request interface is
@@ -89,9 +97,11 @@ class HmacAuth(object):
         return self._request_signature(environ, self._digest)
 
     def _request_signature(self, environ, digest):
-        h = hmac.new(self._secret_key.encode('utf8'),
+        h = hmac.new(
+            self._secret_key.encode('utf8'),
             self.string_to_sign(environ).encode('utf8'),
-            digest)
+            digest,
+        )
         request = Request(environ)
         if 'wsgi.input' in environ:
             h.update(request.get_data())
@@ -130,7 +140,9 @@ class HmacAuth(object):
 
 
 class HmacMiddleware(object):
-    '''WSGI middleware for authenticating incoming HTTP requests via HmacAuth'''
+    '''WSGI middleware for authenticating incoming HTTP requests via HmacAuth.
+    Borrowed from http://stackoverflow.com/a/29265847/1222326.
+    '''
 
     def __init__(self, app, hmac_auth):
         self.app = app
